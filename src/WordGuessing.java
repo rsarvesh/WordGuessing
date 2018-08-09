@@ -1,5 +1,3 @@
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -7,65 +5,89 @@ import java.io.IOException;
 import java.util.*;
 
 public class WordGuessing {
-    public static void main(String ar[]) throws IOException {
-        Scanner sc = new Scanner(System.in);
+    static Scanner sc = new Scanner(System.in);
 
-        int size = 4;
-        String score, guessWord;
+    ArrayList<String> currentDict;
+    int size;
+    String otherPlayerWord;
 
-        ArrayList<String> dict = getDictionary(size);
-        System.out.println(dict);
-//        dict = getAnagramDict(dict);
-//        System.out.println(dict);
-
-        while(true) {
-            int idx = (int)(Math.random() * dict.size());
-            System.out.println(dict.size() + "   " + idx);
-            guessWord = dict.get(idx);
-            System.out.println(dict);
-
-            System.out.print("I guess: " + guessWord + "\nEnter score: ");
-            score = sc.next();
-
-            if(score.equals("win"))
-                break;
-
-            int numChars = Integer.parseInt(score);
-            dict = updateDict(dict, guessWord, numChars);
-            dict.remove(guessWord);
-        }
-        System.out.println("The word is: " + guessWord);
+    public WordGuessing(int size) {
+        this.size = size;
+        this.currentDict = new ArrayList<String>();
+        this.populateDictionary(this.size);
+        int idx = (int)(Math.random() * this.currentDict.size());
+        this.otherPlayerWord= this.currentDict.get(idx);
     }
 
-    public static boolean containsDuplicateLetters(String s){
+    private void populateDictionary(int length) {
+        File file = new File("./sowpods.txt");
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String st;
+
+            while ((st = br.readLine()) != null)
+                if(st.length()==length && !containsDuplicateLetters(st))
+                    this.currentDict.add(st);
+        }
+        catch(IOException io) {
+            io.printStackTrace();
+        }
+    }
+
+    private boolean containsDuplicateLetters(String s){
         for(int i=0;i<s.length();i++)
             for(int j=i+1;j<s.length();j++)
                 if(s.charAt(i)==s.charAt(j))
                     return true;
         return false;
     }
-    public static ArrayList<String> getDictionary(int length) throws IOException {
-        File file = new File("./sowpods.txt");
 
-        BufferedReader br = new BufferedReader(new FileReader(file));
+    public void playGame() {
+        boolean isGameOver;
+        while(true) {
+            isGameOver = this.computerTurn();
+            if(isGameOver)
+                break;
 
-        String st;
-
-        ArrayList<String> words = new ArrayList<String>();
-        while ((st = br.readLine()) != null)
-        {
-            if(st.length()==length)
-            {
-                if(!containsDuplicateLetters(st)){
-                    words.add(st);
-                }
-            }
+            isGameOver = this.playerTurn();
+            if(isGameOver)
+                break;
         }
-        return words;
     }
 
+    private boolean computerTurn() {
+        int idx = (int)(Math.random() * this.currentDict.size());
+        String guessWord = this.currentDict.get(idx);
 
-    public static int calcScore(String actualWord, String checkWord) {
+        System.out.print("\nI guess: " + guessWord + "\nEnter score ('win' if correct): ");
+        String score = sc.next();
+
+        if(score.equals("win")) {
+            System.out.println("I win!! Your word is " + guessWord);
+            return true;
+        }
+
+        int numChars = Integer.parseInt(score);
+        this.updateDict(guessWord, numChars);
+        this.currentDict.remove(guessWord);
+        return false;
+    }
+
+    private boolean playerTurn() {
+        System.out.print("\nEnter your guess: ");
+        String playerGuess = sc.next();
+        playerGuess = playerGuess.toUpperCase();
+        if(playerGuess.equals(this.otherPlayerWord)) {
+            System.out.println("Congrats!! You win");
+            System.out.println("The word is " + this.otherPlayerWord);
+            return true;
+        }
+        int playerScore = this.calcScore(this.otherPlayerWord, playerGuess);
+        System.out.println("Your score is: " + playerScore);
+        return false;
+    }
+
+    private int calcScore(String actualWord, String checkWord) {
         int len = actualWord.length();
         int sc = 0;
         for(int i=0;i<len;i++)
@@ -75,12 +97,17 @@ public class WordGuessing {
         return sc;
     }
 
-    public static ArrayList<String> updateDict(ArrayList<String> dict, String guessWord, int score) {
-        ArrayList<String> newDict = new ArrayList<>();
-        for(int i=0;i<dict.size();i++) {
-            if(score == calcScore(guessWord, dict.get(i)))
-                newDict.add(dict.get(i));
+    private void updateDict(String guessWord, int score) {
+        for(int i=0;i<this.currentDict.size();i++) {
+            if(score != calcScore(guessWord, this.currentDict.get(i)))
+                this.currentDict.remove(i--);
         }
-        return newDict;
+    }
+
+    public static void main(String ar[]) {
+        System.out.print("Enter length of word (4, 5 or 6): ");
+        int difficulty = sc.nextInt();
+        WordGuessing wg = new WordGuessing(difficulty);
+        wg.playGame();
     }
 }
